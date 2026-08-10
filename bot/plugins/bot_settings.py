@@ -1,55 +1,91 @@
-from pyrogram import filters
-from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+"""
+botsettings.py
+Bot Settings message with inline buttons (Cookies section omitted).
 
-from bot.config import Config
-from bot.database import db
-from bot.utils.decorators import admin_only
+Requires: python-telegram-bot >= 20.0
+Install:  pip install python-telegram-bot
+"""
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+)
+
+# ------------------------------------------------------------------ #
+# Configuration
+# ------------------------------------------------------------------ #
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+
+# Replace with your real values / load them from config or a database.
+LOG_CHANNEL = "not set"
+FORCE_SUB_CHANNEL_ID = "[insert_channel_id]"
 
 
-def _panel(client):
-    protect = getattr(client, "protect_content", Config.PROTECT_CONTENT)
-    text = (
-        "🛠 **Bot Settings**\n\n"
-        f"🗂 Storage channel: `{getattr(client, 'storage_channel', 0) or 'not set'}`\n"
-        f"🔒 Force-sub channel: `{getattr(client, 'force_sub_channel', 0) or 'off'}`\n"
-        f"🛡 Protect content: {'ON ✅' if protect else 'OFF ❌'}\n\n"
-        "Change channels with `/setchannel <id>` and `/setforcesub <id|off>`."
+# ------------------------------------------------------------------ #
+# Builders
+# ------------------------------------------------------------------ #
+def build_settings_text() -> str:
+    """Compose the Bot Settings message body."""
+    return (
+        "Bot Settings\n\n"
+        f"Log Channel : {LOG_CHANNEL}\n"
+        f"Force Sub : {FORCE_SUB_CHANNEL_ID}\n\n"
+        "Tap a button below to configure a setting."
     )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            f"🛡 Protect content: {'ON' if protect else 'OFF'}",
-            callback_data="bs:toggle_protect",
-        )],
-        [InlineKeyboardButton("🔄 Refresh", callback_data="bs:refresh")],
-        [InlineKeyboardButton("✖️ Close", callback_data="bs:close")],
-    ])
-    return text, kb
 
 
-@admin_only
-async def botsettings_cmd(client, message):
-    text, kb = _panel(client)
-    await message.reply_text(text, reply_markup=kb)
+def build_settings_keyboard() -> InlineKeyboardMarkup:
+    """Build the inline keyboard (Cookies button omitted)."""
+    keyboard = [
+        [InlineKeyboardButton("Log Channel", callback_data="set_log_channel")],
+        [InlineKeyboardButton("Force Sub", callback_data="set_force_sub")],
+        [InlineKeyboardButton("Close", callback_data="close_settings")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 
-async def botsettings_cb(client, query):
-    if query.from_user.id not in getattr(client, "admins", []):
-        return await query.answer("Not authorized.", show_alert=True)
-    action = query.data.split(":", 1)[1]
-    if action == "close":
-        return await query.message.delete()
-    if action == "toggle_protect":
-        new = not getattr(client, "protect_content", Config.PROTECT_CONTENT)
-        client.protect_content = new
-        await db.update_setting(client.me.id, "protect_content", new)
-        await query.answer("Updated.")
-    else:
-        await query.answer()
-    text, kb = _panel(client)
-    await query.message.edit_text(text, reply_markup=kb)
+# ------------------------------------------------------------------ #
+# Handlers
+# ------------------------------------------------------------------ #
+async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the Bot Settings message with inline buttons."""
+    await update.message.reply_text(
+        text=build_settings_text(),
+        reply_markup=build_settings_keyboard(),
+    )
 
 
-def register(app):
-    app.add_handler(MessageHandler(botsettings_cmd, filters.command("botsettings") & filters.private))
-    app.add_handler(CallbackQueryHandler(botsettings_cb, filters.regex("^bs:")), group=2)
+async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle inline button taps."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "set_log_channel":
+        await query.edit_message_text(
+            "Send me the Log Channel ID/username to set it.",
+            reply_markup=build_settings_keyboard(),
+        )
+    elif query.data == "set_force_sub":
+        await query.edit_message_text(
+            "Send me the Force Sub channel ID to set it.",
+            reply_markup=build_settings_keyboard(),
+        )
+    elif query.data == "close_settings":
+        await query.edit_message_text("Settings closed.")
+
+
+# ------------------------------------------------------------------ #
+# Entry point
+# ------------------------------------------------------------------ #
+def main() -> None:
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("settings", settings))
+    app.add_handler(CallbackQueryHandler(on_button))
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
