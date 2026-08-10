@@ -8,6 +8,7 @@ from bot.database import db
 from bot.handlers import register as register_handlers
 from bot.modules import register as register_modules
 from bot.modules.clone import restart_clones, CLONES
+from bot.webserver import start_webserver
 
 
 async def main():
@@ -34,6 +35,9 @@ async def main():
     app.is_clone = False
 
     LOGGER.info("Mother bot @%s started (v%s).", me.username, __version__)
+
+    # Bind Render's $PORT so the Web Service health check passes.
+    await start_webserver()
 
     await restart_clones()
     LOGGER.info("Boot complete. Active clones: %d", len(CLONES))
