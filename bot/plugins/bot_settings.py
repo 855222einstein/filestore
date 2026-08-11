@@ -1,6 +1,7 @@
 """
 botsettings.py
 Bot Settings message with inline buttons (Cookies section omitted).
+Command: /botsettings
 
 Requires: python-telegram-bot >= 20.0
 Install:  pip install python-telegram-bot
@@ -50,8 +51,8 @@ def build_settings_keyboard() -> InlineKeyboardMarkup:
 # ------------------------------------------------------------------ #
 # Handlers
 # ------------------------------------------------------------------ #
-async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send the Bot Settings message with inline buttons."""
+async def botsettings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /botsettings — send the Bot Settings message with inline buttons."""
     await update.message.reply_text(
         text=build_settings_text(),
         reply_markup=build_settings_keyboard(),
@@ -82,7 +83,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # ------------------------------------------------------------------ #
 def main() -> None:
     app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("settings", settings))
+    app.add_handler(CommandHandler("botsettings", botsettings))
     app.add_handler(CallbackQueryHandler(on_button))
     app.run_polling()
 
